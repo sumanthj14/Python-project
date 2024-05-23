@@ -1,0 +1,103 @@
+import tkinter as tk
+from tkinter import ttk, scrolledtext, messagebox
+import difflib
+
+def compare_codes(code1, code2):
+    if code1.strip() == code2.strip():
+        return "The codes match exactly."
+    else:
+        d = difflib.Differ()
+        diff = list(d.compare(code1.splitlines(), code2.splitlines()))
+        return "\n".join(diff)
+
+def run_code_comparison():
+    code1 = code1_entry.get("1.0", tk.END)
+    code2 = code2_entry.get("1.0", tk.END)
+    test_cases_str = test_cases_entry.get("1.0", tk.END)
+    test_cases = [line.strip() for line in test_cases_str.splitlines() if line.strip()]
+    
+    comparison_result = compare_codes(code1, code2)
+    result_text.delete(1.0, tk.END)
+    result_text.insert(tk.END, comparison_result)
+
+    if "The codes match exactly." in comparison_result:
+        messagebox.showinfo("Comparison Result", "The codes match exactly.")
+    else:
+        messagebox.showinfo("Comparison Result", "The codes do not match. Check the differences in the result box.")
+
+    results = run_test_cases(code1, code2, test_cases)
+    for test_case, result in results.items():
+        result_text.insert(tk.END, f"\nTest Case: {test_case}\nResult: {result}")
+
+def run_test_cases(code1, code2, test_cases):
+    results = {}
+    try:
+        code1_globals = {}
+        code2_globals = {}
+
+        exec(code1, code1_globals)
+        exec(code2, code2_globals)
+
+        for test_case in test_cases:
+            func_call, expected_output = test_case.split("=>")
+            func_call = func_call.strip()
+            expected_output = expected_output.strip()
+
+            try:
+                code1_result = eval(func_call, code1_globals)
+                code2_result = eval(func_call, code2_globals)
+                
+                if str(code1_result) == expected_output and str(code2_result) == expected_output:
+                    results[test_case] = "Pass"
+                else:
+                    results[test_case] = f"Fail (Code1: {code1_result}, Code2: {code2_result})"
+            except Exception as e:
+                results[test_case] = f"Error: {str(e)}"
+
+    except Exception as e:
+        results["Error"] = str(e)
+
+    return results
+
+# GUI setup
+root = tk.Tk()
+root.title("Code Comparison Tool")
+
+# Create mainframe
+mainframe = ttk.Frame(root, padding="10 10 10 10")
+mainframe.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+# Configure the mainframe's grid
+for i in range(10):
+    mainframe.rowconfigure(i, weight=1)
+mainframe.columnconfigure(0, weight=1)
+mainframe.columnconfigure(1, weight=1)
+
+code1_label = ttk.Label(mainframe, text="Enter first code:")
+code1_label.grid(row=0, column=0, sticky=tk.W, pady=5)
+
+code1_entry = scrolledtext.ScrolledText(mainframe, height=10, width=50)
+code1_entry.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=5)
+
+code2_label = ttk.Label(mainframe, text="Enter second code:")
+code2_label.grid(row=2, column=0, sticky=tk.W, pady=5)
+
+code2_entry = scrolledtext.ScrolledText(mainframe, height=10, width=50)
+code2_entry.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=5)
+
+test_cases_label = ttk.Label(mainframe, text="Enter test cases (format: function_call => expected_output):")
+test_cases_label.grid(row=4, column=0, sticky=tk.W, pady=5)
+
+test_cases_entry = scrolledtext.ScrolledText(mainframe, height=5, width=50)
+test_cases_entry.grid(row=5, column=0, sticky=(tk.W, tk.E), pady=5)
+
+run_button = ttk.Button(mainframe, text="Compare Codes", command=run_code_comparison)
+run_button.grid(row=6, column=0, sticky=tk.W, pady=5)
+
+result_label = ttk.Label(mainframe, text="Comparison Result:")
+result_label.grid(row=0, column=1, sticky=tk.W, pady=5)
+
+result_text = scrolledtext.ScrolledText(mainframe, height=25, width=50)
+result_text.grid(row=1, column=1, rowspan=6, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+
+root.mainloop()
